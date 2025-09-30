@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K-Monitor Véletlenszám-generátor</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --background-color: #f8f9fa;
+            --text-color: #212529;
+            --primary-accent: #4a90e2;
+            --secondary-accent: #50e3c2;
+            --tooltip-bg: #212529;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 40px 20px;
+            box-sizing: border-box;
+            overflow-x: hidden;
+        }
+
+        h1 {
+            /* (1) Cím módosítva */
+            font-weight: 700;
+            font-size: 2.5rem;
+            text-align: center;
+            margin-bottom: 5px; /* Kisebb térköz a leírás miatt */
+            width: 100%;
+            max-width: 1100px;
+        }
+
+        .subtitle {
+            /* (2) Alcím stílusa */
+            font-size: 1.1rem;
+            color: #6c757d;
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #dee2e6;
+            width: 100%;
+            max-width: 1100px;
+            text-align: center;
+        }
+
+        /* (3) Frissítés gomb stílusa */
+        #refresh-button {
+            background-color: var(--primary-accent);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 500;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            margin-bottom: 40px;
+        }
+        #refresh-button:hover {
+            background-color: #3b7ad6;
+            transform: scale(1.05);
+        }
+
+        #main-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: flex-start; 
+            gap: 60px;
+            width: 100%;
+            max-width: 1200px;
+            margin-top: 20px;
+        }
+
+        #message-area {
+            color: #6c757d;
+            font-size: 1.1rem;
+        }
+
+        .shape-item {
+            display: flex;
+            flex-direction: column; 
+            align-items: center;
+            text-align: center;
+            width: 280px;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeIn 0.6s ease-out forwards;
+        }
+
+        @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
+
+        .shape {
+            background: linear-gradient(180deg, var(--primary-accent), var(--secondary-accent));
+            /* (4) Lekerekítés csökkentve */
+            border-radius: 4px; 
+            box-shadow: 0 5px 20px rgba(74, 144, 226, 0.2);
+            transition: box-shadow 0.3s ease, transform 0.15s ease;
+            position: relative;
+            cursor: pointer;
+        }
+        
+        /* (5) Hover javítás: csak a kis méretek ugorhatnak, a nagy téglalapokon csak az árnyék változik */
+        .shape:hover {
+            box-shadow: 0 10px 30px rgba(74, 144, 226, 0.4);
+        }
+        .shape.is-square:hover, .shape.is-rectangle:not(.is-tall):hover {
+            transform: scale(1.05); /* Csak a kis és közepes magasságúak ugranak */
+        }
+        /* Magas téglalapoknál nincs transform, a magasságuk miatt */
+        .shape.is-tall:hover {
+             transform: none;
+        }
+        
+        .shape.is-rectangle { width: 200px; }
+        .shape.is-square { border-radius: 4px; }
+
+        .shape::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--tooltip-bg);
+            color: #fff;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s 0.1s ease-in-out;
+            z-index: 10;
+        }
+        
+        .shape:hover::after { opacity: 1; visibility: visible; }
+
+        .description {
+            font-size: 14px;
+            font-weight: 300;
+            line-height: 1.6;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        
+        .description a { color: var(--text-color); text-decoration: none; font-weight: 500; transition: color 0.2s ease; }
+        .description a:hover { color: var(--primary-accent); text-decoration: underline; }
+        
+        footer { margin-top: 60px; font-size: 14px; color: #6c757d; }
+    </style>
+</head>
+<body>
+
+    <!-- (1) Cím módosítva -->
+    <h1>K-Monitor Véletlenszám-generátor</h1>
+    <!-- (2) Alcím módosítva -->
+    <p class="subtitle">Minden frissítéskor 3 véletlenszerű szám jelenik meg terület-arányosan a K-Monitor szeptemberi cikkadatbázisa alapján.</p>
+    
+    <!-- (3) Frissítés gomb -->
+    <button id="refresh-button" onclick="loadDataAndDisplay()">Újrafrissítés</button>
+
+    <div id="main-container">
+        <p id="message-area">Adatok betöltése...</p>
+    </div>
+
+    <footer>
+        Minden frissítéskor 3 véletlenszerű adatpont jelenik meg terület-arányos magassággal.
+    </footer>
+
+    <script>
+        const googleSheetURL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQnxGXQr-8WUylPyM5tR2v1PjPDurDOlaHTOR3Vy3vklBmkXrJzYOLQ_-jDzVcdKQy32miXGIxELHiG/pub?gid=0&single=true&output=csv';
+
+        function formatAmountHumanReadable(amount, currency) {
+            if (amount >= 1000000000) return `${(amount / 1000000000).toFixed(1).replace('.', ',')} milliárd ${currency}`;
+            if (amount >= 1000000) {
+                const value = amount / 1000000;
+                return `${(value % 1 === 0) ? value : value.toFixed(1).replace('.', ',')} millió ${currency}`;
+            }
+            return `${Math.round(amount).toLocaleString('hu-HU')} ${currency}`;
+        }
+
+        function parseCsvRowRobust(rowString) {
+            const regex = /(?:^|,)(\"(?:[^\"]+|\"\")*\"|[^,]*)/g;
+            let matches = [];
+            let match;
+            while (match = regex.exec(rowString)) {
+                let value = match[1];
+                if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1).replace(/""/g, '"');
+                matches.push(value);
+            }
+            return matches;
+        }
+        
+        function robustCSVParser(csvText) {
+            const rows = [];
+            let currentRow = [];
+            let currentField = '';
+            let inQuotes = false;
+
+            for (let i = 0; i < csvText.length; i++) {
+                const char = csvText[i];
+                const nextChar = csvText[i + 1];
+
+                if (inQuotes) {
+                    if (char === '"' && nextChar === '"') { currentField += '"'; i++; } 
+                    else if (char === '"') { inQuotes = false; } 
+                    else { currentField += char; }
+                } else {
+                    if (char === '"') { inQuotes = true; } 
+                    else if (char === ',') { currentRow.push(currentField); currentField = ''; } 
+                    else if (char === '\n' || char === '\r') {
+                        if (nextChar === '\n' && char === '\r') i++;
+                        currentRow.push(currentField);
+                        rows.push(currentRow);
+                        currentRow = [];
+                        currentField = '';
+                    } else { currentField += char; }
+                }
+            }
+            currentRow.push(currentField);
+            rows.push(currentRow);
+            return rows;
+        }
+
+        function displayShapes(itemsToDisplay) {
+            const container = document.getElementById('main-container');
+            container.innerHTML = ''; 
+
+            const RECTANGLE_WIDTH = 200;
+            const MAX_ONSCREEN_VALUE = 75000000000;
+            const MAX_ONSCREEN_HEIGHT = 700;
+            const MAX_ONSCREEN_AREA = RECTANGLE_WIDTH * MAX_ONSCREEN_HEIGHT;
+            const THRESHOLD_VALUE = 150000000;
+            const TALL_HEIGHT_THRESHOLD = 200; // E felett már ne ugráljon a hover
+
+            const sortedItems = itemsToDisplay.sort((a,b) => a.mekkora_a_kor - b.mekkora_a_kor);
+
+            sortedItems.forEach((item, index) => {
+                const shapeItem = document.createElement('div');
+                shapeItem.className = 'shape-item';
+                shapeItem.style.animationDelay = `${index * 0.15}s`;
+
+                const description = document.createElement('p');
+                description.className = 'description';
+                const link = document.createElement('a');
+                link.href = item.url;
+                link.textContent = item.description;
+                link.target = '_blank'; 
+                link.rel = 'noopener noreferrer';
+                description.appendChild(link);
+                shapeItem.appendChild(description);
+
+                const shape = document.createElement('div');
+                shape.className = 'shape';
+                shape.dataset.tooltip = formatAmountHumanReadable(item.amount, item.currency);
+
+                const targetArea = (item.mekkora_a_kor / MAX_ONSCREEN_VALUE) * MAX_ONSCREEN_AREA;
+                let height = 0;
+
+                if (item.mekkora_a_kor < THRESHOLD_VALUE) {
+                    shape.classList.add('is-square');
+                    const side = Math.sqrt(targetArea);
+                    height = Math.max(10, side);
+                    shape.style.width = `${height}px`;
+                    shape.style.height = `${height}px`;
+                    
+                    // Kis négyzeteknél engedjük a transform hovert
+                    shape.classList.add('is-small'); 
+                } else {
+                    shape.classList.add('is-rectangle');
+                    height = targetArea / RECTANGLE_WIDTH;
+                    shape.style.height = `${height}px`;
+                    
+                    // (5) Magas téglalapoknál tiltjuk a transform hovert
+                    if (height > TALL_HEIGHT_THRESHOLD) {
+                        shape.classList.add('is-tall');
+                    }
+                }
+                
+                shapeItem.appendChild(shape);
+                container.appendChild(shapeItem);
+            });
+        }
+        
+        async function loadDataAndDisplay() {
+            try {
+                const response = await fetch(googleSheetURL + '&cachebust=' + new Date().getTime());
+                if (!response.ok) throw new Error(`Hálózati hiba: ${response.statusText}`);
+                const csvText = await response.text();
+                
+                const allRows = robustCSVParser(csvText);
+                const headers = allRows.shift();
+                
+                const requiredHeaders = ['mekkora_a_kor', 'amount', 'currency', 'description', 'url'];
+                const headerIndices = {};
+                requiredHeaders.forEach(header => {
+                    const index = headers.indexOf(header);
+                    if (index === -1) throw new Error(`A CSV-ből hiányzik a kötelező "${header}" oszlop!`);
+                    headerIndices[header] = index;
+                });
+
+                let data = [];
+                for (const values of allRows) {
+                    if (!values || values.length < headers.length) continue;
+                    
+                    const mekkora_a_kor = parseInt(values[headerIndices.mekkora_a_kor], 10);
+                    const amount = parseInt(values[headerIndices.amount], 10);
+
+                    if (!isNaN(mekkora_a_kor) && !isNaN(amount)) {
+                        data.push({ mekkora_a_kor, amount, currency: values[headerIndices.currency], description: values[headerIndices.description], url: values[headerIndices.url] });
+                    }
+                }
+                
+                const filteredData = data.filter(item => item.mekkora_a_kor >= 1000000);
+
+                if (filteredData.length < 3) {
+                    document.getElementById('main-container').innerHTML = '<p id="message-area">Nincs elég adat (legalább 3) a megjelenítéshez.</p>';
+                    return;
+                }
+                
+                const shuffled = [...filteredData].sort(() => 0.5 - Math.random());
+                const itemsToDisplay = shuffled.slice(0, 3);
+                
+                displayShapes(itemsToDisplay);
+
+            } catch (error) {
+                console.error('Hiba az adatok betöltése közben:', error);
+                document.getElementById('main-container').innerHTML = `<p id="message-area">Hiba történt az adatok betöltése közben. <br>Lehetséges ok: ${error.message}</p>`;
+            }
+        }
+
+        window.onload = loadDataAndDisplay;
+    </script>
+
+</body>
+</html>
